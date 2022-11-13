@@ -3,34 +3,49 @@
 local utils = require 'mp.utils'
 
 local function get_temp_path()
-    local directory_seperator = package.config:match("([^\n]*)\n?")
-    local example_temp_file_path = os.tmpname()
+  local directory_seperator = package.config:match("([^\n]*)\n?")
+  local example_temp_file_path = os.tmpname()
 
-    -- remove generated temp file
-    pcall(os.remove, example_temp_file_path)
+  -- remove generated temp file
+  pcall(os.remove, example_temp_file_path)
 
-    local seperator_idx = example_temp_file_path:reverse():find(directory_seperator)
-    local temp_path_length = #example_temp_file_path - seperator_idx
+  local seperator_idx = example_temp_file_path:reverse():find(directory_seperator)
+  local temp_path_length = #example_temp_file_path - seperator_idx
 
-    return example_temp_file_path:sub(1, temp_path_length)
+  return example_temp_file_path:sub(1, temp_path_length)
 end
 
-tempDir = get_temp_path()
+local tempDir = get_temp_path()
 
-function join_paths(...)
-    local arg={...}
-    path = ""
-    for i,v in ipairs(arg) do
-        path = utils.join_path(path, tostring(v))
-    end
-    return path;
+local function join_paths(...)
+  local arg = { ... }
+  local path = ""
+  for i, v in ipairs(arg) do
+    path = utils.join_path(path, tostring(v))
+  end
+  return path;
 end
 
-ppid = utils.getpid()
+local ppid = utils.getpid()
 os.execute("mkdir " .. join_paths(tempDir, "mpvSockets") .. " 2>/dev/null")
 mp.set_property("options/input-ipc-server", join_paths(tempDir, "mpvSockets", ppid))
+os.execute("pkill -RTMIN+11 someblocks")
 
-function shutdown_handler()
-        os.remove(join_paths(tempDir, "mpvSockets", ppid))
+local function shutdown_handler()
+  os.remove(join_paths(tempDir, "mpvSockets", ppid))
+  os.execute("pkill -RTMIN+11 someblocks")
 end
+
 mp.register_event("shutdown", shutdown_handler)
+
+mp.add_key_binding("SPACE", "touch-socket", function()
+  os.execute("touch " .. join_paths(tempDir, "mpvSockets", ppid))
+  local pause = mp.get_property_native("pause")
+  mp.set_property_native("pause", not pause)
+end)
+mp.observe_property("pause", "bool", function(_, paused)
+  os.execute("pkill -RTMIN+11 someblocks")
+end)
+mp.observe_property("volume", "string", function(_, paused)
+  os.execute("pkill -RTMIN+10 someblocks")
+end)
