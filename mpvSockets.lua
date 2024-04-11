@@ -29,23 +29,15 @@ end
 local ppid = utils.getpid()
 os.execute("mkdir " .. join_paths(tempDir, "mpvSockets") .. " 2>/dev/null")
 mp.set_property("options/input-ipc-server", join_paths(tempDir, "mpvSockets", ppid))
-os.execute("pkill -RTMIN+11 someblocks")
 
 local function shutdown_handler()
   os.remove(join_paths(tempDir, "mpvSockets", ppid))
-  os.execute("pkill -RTMIN+11 someblocks")
 end
 
 mp.register_event("shutdown", shutdown_handler)
 
-mp.add_key_binding("SPACE", "touch-socket", function()
+mp.observe_property("pause", "touch-socket", function(_, paused)
+  -- if not paused then
   os.execute("touch " .. join_paths(tempDir, "mpvSockets", ppid))
-  local pause = mp.get_property_native("pause")
-  mp.set_property_native("pause", not pause)
-end)
-mp.observe_property("pause", "bool", function(_, paused)
-  os.execute("pkill -RTMIN+11 someblocks")
-end)
-mp.observe_property("volume", "string", function(_, paused)
-  os.execute("pkill -RTMIN+10 someblocks")
+  -- end
 end)
